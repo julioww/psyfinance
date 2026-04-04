@@ -103,6 +103,7 @@ router.post('/:patientId/:year/:month', async (req: Request, res: Response) => {
     where: { id: patientId },
     include: {
       rateHistory: { orderBy: { effectiveFrom: 'asc' } },
+      revenueShareConfig: true,
     },
   });
   if (!patient || patient.deletedAt) {
@@ -145,6 +146,20 @@ router.post('/:patientId/:year/:month', async (req: Request, res: Response) => {
   const expectedAmount =
     patient.paymentModel === 'MENSAL' ? rate : sessionCount * rate;
 
+  // Compute revenueShareAmount from active config
+  const activeShare = patient.revenueShareConfig?.active
+    ? patient.revenueShareConfig
+    : null;
+
+  let revenueShareAmount: number | null = null;
+  if (activeShare) {
+    if (activeShare.shareType === 'PERCENTAGE') {
+      revenueShareAmount = expectedAmount * (Number(activeShare.shareValue) / 100);
+    } else {
+      revenueShareAmount = sessionCount * Number(activeShare.shareValue);
+    }
+  }
+
   // Upsert the session record
   const record = await prisma.sessionRecord.upsert({
     where: { patientId_year_month: { patientId, year, month } },
@@ -177,19 +192,22 @@ router.post('/:patientId/:year/:month', async (req: Request, res: Response) => {
         sessionRecordId: record.id,
         amountPaid: 0,
         status: 'PENDENTE',
+        revenueShareAmount,
       },
     });
-
-    const updated = await prisma.sessionRecord.findUnique({
-      where: { id: record.id },
-      include: { payment: true },
-    });
-    res.json(serializeRecord(updated!));
   } else {
-    // Rule 5: Payment exists — expectedAmount already updated on SessionRecord,
-    // do not touch amountPaid
-    res.json(serializeRecord(record));
+    // Rule 5: Payment exists — update revenueShareAmount; do not touch amountPaid
+    await prisma.payment.update({
+      where: { sessionRecordId: record.id },
+      data: { revenueShareAmount },
+    });
   }
+
+  const updated = await prisma.sessionRecord.findUnique({
+    where: { id: record.id },
+    include: { payment: true },
+  });
+  res.json(serializeRecord(updated!));
 });
 
 export default router;

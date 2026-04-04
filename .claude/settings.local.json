@@ -4,7 +4,9 @@
       "Bash(grep -r \"sessionRecord\\\\|session_record\" /c/Users/julio/CLaude/psyfinance/psyfinance-api/src --include=*.ts)",
       "Bash(flutter analyze:*)",
       "Bash(flutter test:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npx prisma:*)",
+      "Bash(npm install:*)"
     ]
   }
 }

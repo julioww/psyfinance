@@ -47,6 +47,7 @@ class _MonthlyBulkScreenState extends ConsumerState<MonthlyBulkScreen> {
   late int _year;
   late int _month;
   String? _countryFilter; // null = "Todos"
+  bool _showRepasse = false;
 
   @override
   void initState() {
@@ -88,9 +89,12 @@ class _MonthlyBulkScreenState extends ConsumerState<MonthlyBulkScreen> {
           month: _month,
           countryFilter: _countryFilter,
           allRows: asyncView.value?.patients ?? [],
+          showRepasse: _showRepasse,
           onPrev: _prevMonth,
           onNext: _nextMonth,
           onCountryChanged: (c) => setState(() => _countryFilter = c),
+          onToggleRepasse: () =>
+              setState(() => _showRepasse = !_showRepasse),
         ),
         asyncView.when(
           loading: () => Expanded(child: _ShimmerSkeleton()),
@@ -107,6 +111,7 @@ class _MonthlyBulkScreenState extends ConsumerState<MonthlyBulkScreen> {
             year: _year,
             month: _month,
             countryFilter: _countryFilter,
+            showRepasse: _showRepasse,
             args: _args,
             onSessionSaved: () => ref
                 .read(monthlyViewProvider(_args).notifier)
@@ -127,18 +132,22 @@ class _MonthlyAppBar extends StatelessWidget {
   final int month;
   final String? countryFilter;
   final List<MonthlyPatientRow> allRows;
+  final bool showRepasse;
   final VoidCallback onPrev;
   final VoidCallback onNext;
   final ValueChanged<String?> onCountryChanged;
+  final VoidCallback onToggleRepasse;
 
   const _MonthlyAppBar({
     required this.year,
     required this.month,
     required this.countryFilter,
     required this.allRows,
+    required this.showRepasse,
     required this.onPrev,
     required this.onNext,
     required this.onCountryChanged,
+    required this.onToggleRepasse,
   });
 
   List<String> get _countries {
@@ -180,6 +189,20 @@ class _MonthlyAppBar extends StatelessWidget {
             visualDensity: VisualDensity.compact,
           ),
           const Spacer(),
+          // Toggle repasse column
+          Tooltip(
+            message:
+                showRepasse ? 'Ocultar repasses' : 'Mostrar repasses',
+            child: IconButton(
+              icon: Icon(
+                Icons.receipt_long_outlined,
+                color: showRepasse ? cs.primary : null,
+              ),
+              onPressed: onToggleRepasse,
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
+          const SizedBox(width: 4),
           // "Todos" chip
           _FilterChip(
             label: 'Todos',
@@ -336,6 +359,7 @@ class _MonthlyBody extends ConsumerWidget {
   final int year;
   final int month;
   final String? countryFilter;
+  final bool showRepasse;
   final MonthlyArgs args;
   final VoidCallback onSessionSaved;
 
@@ -344,6 +368,7 @@ class _MonthlyBody extends ConsumerWidget {
     required this.year,
     required this.month,
     required this.countryFilter,
+    required this.showRepasse,
     required this.args,
     required this.onSessionSaved,
   });
@@ -377,6 +402,7 @@ class _MonthlyBody extends ConsumerWidget {
                         rows: filtered,
                         year: year,
                         month: month,
+                        showRepasse: showRepasse,
                         args: args,
                         onSessionSaved: onSessionSaved,
                       ),
@@ -570,6 +596,7 @@ class _PatientTable extends StatelessWidget {
   final List<MonthlyPatientRow> rows;
   final int year;
   final int month;
+  final bool showRepasse;
   final MonthlyArgs args;
   final VoidCallback onSessionSaved;
 
@@ -577,6 +604,7 @@ class _PatientTable extends StatelessWidget {
     required this.rows,
     required this.year,
     required this.month,
+    required this.showRepasse,
     required this.args,
     required this.onSessionSaved,
   });
@@ -597,7 +625,7 @@ class _PatientTable extends StatelessWidget {
     return CustomScrollView(
       slivers: [
         // Table header
-        SliverToBoxAdapter(child: _TableHeader()),
+        SliverToBoxAdapter(child: _TableHeader(showRepasse: showRepasse)),
         // Country groups
         for (final country in countries)
           ..._buildCountryGroup(context, country, groups[country]!),
@@ -637,6 +665,7 @@ class _PatientTable extends StatelessWidget {
             row: groupRows[i],
             year: year,
             month: month,
+            showRepasse: showRepasse,
             args: args,
             onSessionSaved: onSessionSaved,
           ),
@@ -661,22 +690,27 @@ class _PatientTable extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _TableHeader extends StatelessWidget {
+  final bool showRepasse;
+
+  const _TableHeader({required this.showRepasse});
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Container(
       color: cs.surfaceContainerLow,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: const Row(
+      child: Row(
         children: [
-          _HeaderCell('Nome', flex: 3),
-          _HeaderCell('Sessões', flex: 2),
-          _HeaderCell('Esperado', flex: 2),
-          _HeaderCell('Pago', flex: 2),
-          _HeaderCell('Saldo', flex: 2),
-          _HeaderCell('Status', flex: 2),
-          _HeaderCell('Obs', flex: 2),
-          SizedBox(width: 40),
+          const _HeaderCell('Nome', flex: 3),
+          const _HeaderCell('Sessões', flex: 2),
+          const _HeaderCell('Esperado', flex: 2),
+          const _HeaderCell('Pago', flex: 2),
+          const _HeaderCell('Saldo', flex: 2),
+          const _HeaderCell('Status', flex: 2),
+          if (showRepasse) const _HeaderCell('Repasse', flex: 2),
+          const _HeaderCell('Obs', flex: 2),
+          const SizedBox(width: 40),
         ],
       ),
     );
@@ -807,6 +841,7 @@ class _PatientRow extends ConsumerStatefulWidget {
   final MonthlyPatientRow row;
   final int year;
   final int month;
+  final bool showRepasse;
   final MonthlyArgs args;
   final VoidCallback onSessionSaved;
 
@@ -814,6 +849,7 @@ class _PatientRow extends ConsumerStatefulWidget {
     required this.row,
     required this.year,
     required this.month,
+    required this.showRepasse,
     required this.args,
     required this.onSessionSaved,
   });
@@ -1109,6 +1145,21 @@ class _PatientRowState extends ConsumerState<_PatientRow> {
                 ? _StatusChip(status: row.payment!.status)
                 : const SizedBox.shrink(),
           ),
+          // Repasse (hidden by default)
+          if (widget.showRepasse)
+            Expanded(
+              flex: 2,
+              child: Text(
+                hasSession && (row.payment?.revenueShareAmount ?? 0) > 0
+                    ? formatCurrency(
+                        row.payment!.revenueShareAmount!, currency)
+                    : '—',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: cs.onSurfaceVariant,
+                ),
+              ),
+            ),
           // Obs
           Expanded(
             flex: 2,

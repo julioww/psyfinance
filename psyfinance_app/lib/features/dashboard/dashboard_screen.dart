@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:psyfinance_app/core/formatters.dart';
 import 'dashboard_model.dart';
 import 'dashboard_provider.dart';
-import 'dashboard_repository.dart';
+import 'export_button.dart';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -29,7 +29,6 @@ class DashboardScreen extends ConsumerStatefulWidget {
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   int _year = DateTime.now().year.clamp(2023, 2026);
-  bool _exporting = false;
 
   @override
   Widget build(BuildContext context) {
@@ -41,58 +40,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       data: (data) => _DashboardBody(
         year: _year,
         data: data,
-        exporting: _exporting,
         onYearChanged: (y) => setState(() => _year = y),
-        onExport: _handleExport,
       ),
     );
-  }
-
-  Future<void> _handleExport(String option) async {
-    final repo = ref.read(dashboardRepositoryProvider);
-    final year = _year;
-
-    setState(() => _exporting = true);
-
-    try {
-      final String endpoint;
-      final String filename;
-
-      switch (option) {
-        case 'monthly-csv':
-          endpoint = 'monthly-csv';
-          filename = 'mensal_$year.csv';
-        case 'annual-csv':
-          endpoint = 'annual-csv';
-          filename = 'anual_$year.csv';
-        case 'summary-csv':
-          endpoint = 'summary-csv';
-          filename = 'resumo_$year.csv';
-        default:
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Exportação PDF ainda não disponível')),
-            );
-          }
-          return;
-      }
-
-      final path = await repo.downloadExport(endpoint, year, filename);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Arquivo salvo: $path')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao exportar: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _exporting = false);
-    }
   }
 }
 
@@ -103,16 +53,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 class _DashboardBody extends StatelessWidget {
   final int year;
   final DashboardData data;
-  final bool exporting;
   final ValueChanged<int> onYearChanged;
-  final ValueChanged<String> onExport;
 
   const _DashboardBody({
     required this.year,
     required this.data,
-    required this.exporting,
     required this.onYearChanged,
-    required this.onExport,
   });
 
   @override
@@ -124,9 +70,7 @@ class _DashboardBody extends StatelessWidget {
         children: [
           _PageHeader(
             year: year,
-            exporting: exporting,
             onYearChanged: onYearChanged,
-            onExport: onExport,
           ),
           const SizedBox(height: 16),
           Row(
@@ -177,15 +121,11 @@ class _DashboardBody extends StatelessWidget {
 
 class _PageHeader extends StatelessWidget {
   final int year;
-  final bool exporting;
   final ValueChanged<int> onYearChanged;
-  final ValueChanged<String> onExport;
 
   const _PageHeader({
     required this.year,
-    required this.exporting,
     required this.onYearChanged,
-    required this.onExport,
   });
 
   @override
@@ -218,36 +158,84 @@ class _PageHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        // IntrinsicWidth prevents OutlinedButton from expanding to fill
-        // the Row's unbounded remaining space.
-        IntrinsicWidth(
-          child: PopupMenuButton<String>(
-            onSelected: onExport,
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: 'monthly-csv', child: Text('Mensal CSV')),
-              PopupMenuItem(value: 'monthly-pdf', child: Text('Mensal PDF')),
-              PopupMenuItem(value: 'annual-csv', child: Text('Anual CSV')),
-              PopupMenuItem(value: 'annual-pdf', child: Text('Anual PDF')),
-              PopupMenuItem(value: 'summary-csv', child: Text('Resumo CSV')),
-              PopupMenuItem(value: 'summary-pdf', child: Text('Resumo PDF')),
-            ],
-            child: IgnorePointer(
-              child: OutlinedButton.icon(
-                onPressed: () {},
-                icon: exporting
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.file_download_outlined, size: 16),
-                label: const Text('Exportar'),
+        _ExportMenuButton(year: year),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// _ExportMenuButton — popup with ExportButton items for each format
+// ---------------------------------------------------------------------------
+
+class _ExportMenuButton extends StatelessWidget {
+  final int year;
+
+  const _ExportMenuButton({required this.year});
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<_ExportOption>(
+      onSelected: (_) {},
+      itemBuilder: (context) => [
+        for (final opt in _ExportOption.values)
+          PopupMenuItem<_ExportOption>(
+            value: opt,
+            padding: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: ExportButton(
+                type: opt.type,
+                format: opt.format,
+                year: year,
               ),
             ),
           ),
-        ),
       ],
+      child: OutlinedButton.icon(
+        onPressed: null,
+        icon: const Icon(Icons.file_download_outlined, size: 16),
+        label: const Text('Exportar'),
+      ),
     );
+  }
+}
+
+enum _ExportOption {
+  monthlyCsv,
+  monthlyPdf,
+  annualCsv,
+  annualPdf,
+  summaryCsv,
+  summaryPdf,
+}
+
+extension _ExportOptionX on _ExportOption {
+  ExportType get type {
+    switch (this) {
+      case _ExportOption.monthlyCsv:
+      case _ExportOption.monthlyPdf:
+        return ExportType.monthly;
+      case _ExportOption.annualCsv:
+      case _ExportOption.annualPdf:
+        return ExportType.annual;
+      case _ExportOption.summaryCsv:
+      case _ExportOption.summaryPdf:
+        return ExportType.summary;
+    }
+  }
+
+  ExportFormat get format {
+    switch (this) {
+      case _ExportOption.monthlyCsv:
+      case _ExportOption.annualCsv:
+      case _ExportOption.summaryCsv:
+        return ExportFormat.csv;
+      case _ExportOption.monthlyPdf:
+      case _ExportOption.annualPdf:
+      case _ExportOption.summaryPdf:
+        return ExportFormat.pdf;
+    }
   }
 }
 

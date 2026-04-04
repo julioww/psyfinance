@@ -1,4 +1,5 @@
 import 'package:psyfinance_app/core/api_client.dart';
+import 'package:psyfinance_app/features/revenue_share/revenue_share_model.dart';
 import 'patient_model.dart';
 import 'patient_summary_model.dart';
 import 'rate_history_model.dart';
@@ -68,5 +69,25 @@ class PatientsRepository {
       },
     );
     return RateHistory.fromJson(data as Map<String, dynamic>);
+  }
+
+  Future<RevenueShareConfig?> getRevenueShare(String patientId) async {
+    final data = await _client.get('/api/patients/$patientId/revenue-share');
+    return RevenueShareConfig.fromJson(data as Map<String, dynamic>);
+  }
+
+  Future<RevenueShareConfig> saveRevenueShare(
+    String patientId,
+    RevenueShareDto dto,
+  ) async {
+    final data = await _client.post(
+      '/api/patients/$patientId/revenue-share',
+      data: dto.toJson(),
+    );
+    return RevenueShareConfig.fromJson(data as Map<String, dynamic>);
+  }
+
+  Future<void> deleteRevenueShare(String patientId) async {
+    await _client.delete('/api/patients/$patientId/revenue-share');
   }
 }

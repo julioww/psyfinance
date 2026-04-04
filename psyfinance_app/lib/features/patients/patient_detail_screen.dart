@@ -9,6 +9,9 @@ import 'package:psyfinance_app/features/patients/patient_summary_model.dart';
 import 'package:psyfinance_app/features/patients/patients_provider.dart';
 import 'package:psyfinance_app/features/patients/rate_history_widget.dart';
 import 'package:psyfinance_app/features/payments/payments_provider.dart';
+import 'package:psyfinance_app/features/revenue_share/revenue_share_form_dialog.dart';
+import 'package:psyfinance_app/features/revenue_share/revenue_share_model.dart';
+import 'package:psyfinance_app/features/revenue_share/revenue_share_provider.dart';
 import 'package:psyfinance_app/features/sessions/session_entry_sheet.dart';
 
 // ---------------------------------------------------------------------------
@@ -511,13 +514,13 @@ class _Badge extends StatelessWidget {
 // Left sidebar
 // ---------------------------------------------------------------------------
 
-class _LeftSidebar extends StatelessWidget {
+class _LeftSidebar extends ConsumerWidget {
   final PatientSummary summary;
 
   const _LeftSidebar({required this.summary});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final patient = summary.patient;
     final firstRate =
         summary.rates.isNotEmpty ? summary.rates.last : null;
@@ -556,30 +559,178 @@ class _LeftSidebar extends StatelessWidget {
           title: 'REPASSE',
           initiallyExpanded: false,
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Sem repasse configurado.',
-                    style: TextStyle(
-                        color:
-                            Theme.of(context).colorScheme.onSurfaceVariant,
-                        fontSize: 13),
-                  ),
-                  TextButton(
-                    onPressed: () => ScaffoldMessenger.of(context)
-                        .showSnackBar(const SnackBar(
-                            content: Text('Repasse disponível em F9'))),
-                    child: const Text('Configurar repasse'),
-                  ),
-                ],
-              ),
-            ),
+            _RepasseSection(patient: patient),
           ],
         ),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// REPASSE section — ConsumerStatefulWidget to handle loading + actions
+// ---------------------------------------------------------------------------
+
+class _RepasseSection extends ConsumerStatefulWidget {
+  final Patient patient;
+
+  const _RepasseSection({required this.patient});
+
+  @override
+  ConsumerState<_RepasseSection> createState() => _RepasseSectionState();
+}
+
+class _RepasseSectionState extends ConsumerState<_RepasseSection> {
+  bool _saving = false;
+
+  String _configLabel(RevenueShareConfig config) {
+    final currency = widget.patient.currency.apiValue;
+    if (config.shareType == ShareType.percentage) {
+      final pct = config.shareValue % 1 == 0
+          ? config.shareValue.toInt().toString()
+          : config.shareValue.toStringAsFixed(1);
+      return '$pct% para ${config.beneficiaryName}';
+    } else {
+      return '${formatCurrency(config.shareValue, currency)}/sessão para ${config.beneficiaryName}';
+    }
+  }
+
+  Future<void> _openForm(RevenueShareConfig? existing) async {
+    final dto = await showRevenueShareFormDialog(
+      context,
+      existing: existing,
+    );
+    if (dto == null || !mounted) return;
+    setState(() => _saving = true);
+    try {
+      await ref
+          .read(revenueShareProvider(widget.patient.id).notifier)
+          .save(widget.patient.id, dto);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _deactivate() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remover repasse'),
+        content: const Text('Deseja desativar o repasse configurado?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Desativar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _saving = true);
+    try {
+      await ref
+          .read(revenueShareProvider(widget.patient.id).notifier)
+          .deactivate(widget.patient.id);
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final asyncConfig = ref.watch(revenueShareProvider(widget.patient.id));
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: asyncConfig.when(
+        loading: () => const SizedBox(
+          height: 36,
+          child: Center(
+            child: SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        ),
+        error: (_, __) => Text(
+          'Erro ao carregar repasse.',
+          style: TextStyle(color: cs.error, fontSize: 13),
+        ),
+        data: (config) {
+          if (_saving) {
+            return const SizedBox(
+              height: 36,
+              child: Center(
+                child: SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            );
+          }
+
+          if (config == null) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Sem repasse configurado.',
+                  style: TextStyle(
+                      color: cs.onSurfaceVariant, fontSize: 13),
+                ),
+                TextButton.icon(
+                  onPressed: () => _openForm(null),
+                  icon: const Icon(Icons.add, size: 16),
+                  label: const Text('Configurar repasse'),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                  ),
+                ),
+              ],
+            );
+          }
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _configLabel(config),
+                style: const TextStyle(
+                    fontSize: 13, fontWeight: FontWeight.w500),
+              ),
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined, size: 16),
+                    onPressed: () => _openForm(config),
+                    tooltip: 'Editar repasse',
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.cancel_outlined,
+                        size: 16, color: cs.error),
+                    onPressed: _deactivate,
+                    tooltip: 'Desativar repasse',
+                    visualDensity: VisualDensity.compact,
+                    padding: EdgeInsets.zero,
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

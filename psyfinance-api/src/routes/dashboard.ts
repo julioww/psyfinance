@@ -21,6 +21,7 @@ router.get('/', async (req: Request, res: Response) => {
         where: { year, deletedAt: null },
         include: { payment: true },
       },
+      revenueShareConfig: true,
     },
     orderBy: [{ location: 'asc' }, { name: 'asc' }],
   });
@@ -84,7 +85,7 @@ router.get('/', async (req: Request, res: Response) => {
         patientId: p.id,
         patientName: p.name,
         currency: p.currency,
-        beneficiaryName: p.location,
+        beneficiaryName: p.revenueShareConfig?.beneficiaryName ?? p.location,
         totalSessions,
         totalRepass,
       });
@@ -162,26 +163,53 @@ router.get('/comparison', async (req: Request, res: Response) => {
 
   const result: Record<
     number,
-    { BRL: { expected: number; received: number }; EUR: { expected: number; received: number } }
+    {
+      BRL: { sessions: number; expected: number; received: number };
+      EUR: { sessions: number; expected: number; received: number };
+    }
   > = {};
 
   for (const year of years) {
     result[year] = {
-      BRL: { expected: 0, received: 0 },
-      EUR: { expected: 0, received: 0 },
+      BRL: { sessions: 0, expected: 0, received: 0 },
+      EUR: { sessions: 0, expected: 0, received: 0 },
     };
   }
 
   for (const record of records) {
     const { year } = record;
     const currency = record.patient.currency as 'BRL' | 'EUR';
+    result[year]![currency].sessions += record.sessionCount;
     result[year]![currency].expected += Number(record.expectedAmount);
     if (record.payment) {
       result[year]![currency].received += Number(record.payment.amountPaid);
     }
   }
 
-  res.json(years.map((year) => ({ year, BRL: result[year]!.BRL, EUR: result[year]!.EUR })));
+  res.json(
+    years.map((year) => {
+      const d = result[year]!;
+      const brlAvg = d.BRL.sessions > 0 ? d.BRL.expected / d.BRL.sessions : 0;
+      const eurAvg = d.EUR.sessions > 0 ? d.EUR.expected / d.EUR.sessions : 0;
+      return {
+        year,
+        BRL: {
+          sessions: d.BRL.sessions,
+          avgPricePerSession: brlAvg,
+          expected: d.BRL.expected,
+          received: d.BRL.received,
+          balance: d.BRL.expected - d.BRL.received,
+        },
+        EUR: {
+          sessions: d.EUR.sessions,
+          avgPricePerSession: eurAvg,
+          expected: d.EUR.expected,
+          received: d.EUR.received,
+          balance: d.EUR.expected - d.EUR.received,
+        },
+      };
+    }),
+  );
 });
 
 // ---------------------------------------------------------------------------

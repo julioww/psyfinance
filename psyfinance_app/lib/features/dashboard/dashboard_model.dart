@@ -154,33 +154,57 @@ class DashboardData {
 }
 
 // ---------------------------------------------------------------------------
+// CurrencyYearData — per-currency data within a YearlyComparison
+// ---------------------------------------------------------------------------
+
+class CurrencyYearData {
+  final int sessions;
+  final double avgPricePerSession;
+  final double expected;
+  final double received;
+  final double balance;
+
+  const CurrencyYearData({
+    required this.sessions,
+    required this.avgPricePerSession,
+    required this.expected,
+    required this.received,
+    required this.balance,
+  });
+
+  factory CurrencyYearData.fromJson(Map<String, dynamic> json) => CurrencyYearData(
+        sessions: (json['sessions'] as num).toInt(),
+        avgPricePerSession: (json['avgPricePerSession'] as num).toDouble(),
+        expected: (json['expected'] as num).toDouble(),
+        received: (json['received'] as num).toDouble(),
+        balance: (json['balance'] as num).toDouble(),
+      );
+}
+
+// ---------------------------------------------------------------------------
 // YearlyComparison — response from /api/dashboard/comparison
 // ---------------------------------------------------------------------------
 
 class YearlyComparison {
   final int year;
-  final double brlExpected;
-  final double brlReceived;
-  final double eurExpected;
-  final double eurReceived;
+  final CurrencyYearData brl;
+  final CurrencyYearData eur;
 
   const YearlyComparison({
     required this.year,
-    required this.brlExpected,
-    required this.brlReceived,
-    required this.eurExpected,
-    required this.eurReceived,
+    required this.brl,
+    required this.eur,
   });
 
-  factory YearlyComparison.fromJson(Map<String, dynamic> json) {
-    final brl = json['BRL'] as Map<String, dynamic>;
-    final eur = json['EUR'] as Map<String, dynamic>;
-    return YearlyComparison(
-      year: json['year'] as int,
-      brlExpected: (brl['expected'] as num).toDouble(),
-      brlReceived: (brl['received'] as num).toDouble(),
-      eurExpected: (eur['expected'] as num).toDouble(),
-      eurReceived: (eur['received'] as num).toDouble(),
-    );
-  }
+  // Convenience getters for backward compatibility
+  double get brlExpected => brl.expected;
+  double get brlReceived => brl.received;
+  double get eurExpected => eur.expected;
+  double get eurReceived => eur.received;
+
+  factory YearlyComparison.fromJson(Map<String, dynamic> json) => YearlyComparison(
+        year: json['year'] as int,
+        brl: CurrencyYearData.fromJson(json['BRL'] as Map<String, dynamic>),
+        eur: CurrencyYearData.fromJson(json['EUR'] as Map<String, dynamic>),
+      );
 }

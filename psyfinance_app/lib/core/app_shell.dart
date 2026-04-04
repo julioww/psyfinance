@@ -41,7 +41,7 @@ class AppShell extends StatelessWidget {
       icon: Icons.bar_chart_outlined,
       selectedIcon: Icons.bar_chart,
       label: 'Relatórios',
-      route: '/relatorios',
+      route: '/relatorio',
     ),
   ];
 
