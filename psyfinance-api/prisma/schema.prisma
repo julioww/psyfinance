@@ -1,0 +1,106 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Status {
+  ATIVO
+  INATIVO
+}
+
+enum PaymentModel {
+  SESSAO
+  MENSAL
+}
+
+enum Currency {
+  BRL
+  EUR
+}
+
+enum PaymentStatus {
+  PENDENTE
+  PARCIAL
+  PAGO
+  ATRASADO
+}
+
+model Patient {
+  id           String       @id @default(uuid())
+  name         String
+  email        String
+  cpf          String?
+  location     String
+  status       Status       @default(ATIVO)
+  paymentModel PaymentModel
+  currency     Currency
+  notes        String?
+  deletedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rateHistory     RateHistory[]
+  sessionRecords  SessionRecord[]
+
+  @@map("patients")
+}
+
+model RateHistory {
+  id            String    @id @default(uuid())
+  patientId     String
+  rate          Decimal   @db.Decimal(10, 2)
+  effectiveFrom DateTime  @db.Date
+  effectiveTo   DateTime? @db.Date
+
+  createdAt DateTime @default(now())
+
+  patient Patient @relation(fields: [patientId], references: [id])
+
+  @@map("rate_history")
+}
+
+model SessionRecord {
+  id             String    @id @default(uuid())
+  patientId      String
+  year           Int
+  month          Int
+  sessionDates   Json      // string[] of "DD/MM" strings
+  sessionCount   Int
+  expectedAmount Decimal   @db.Decimal(10, 2)
+  observations   String?
+  isReposicao    Boolean   @default(false)
+  deletedAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  patient Patient  @relation(fields: [patientId], references: [id])
+  payment Payment?
+
+  @@unique([patientId, year, month])
+  @@map("session_records")
+}
+
+model Payment {
+  id                  String        @id @default(uuid())
+  sessionRecordId     String        @unique
+  amountPaid          Decimal       @db.Decimal(10, 2) @default(0)
+  status              PaymentStatus
+  revenueShareAmount  Decimal?      @db.Decimal(10, 2)
+  deletedAt           DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessionRecord SessionRecord @relation(fields: [sessionRecordId], references: [id])
+
+  @@map("payments")
+}

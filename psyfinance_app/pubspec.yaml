@@ -1,0 +1,51 @@
+name: psyfinance_app
+description: "PsyFinance — gestão financeira para psicologia"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+  # Networking
+  dio: ^5.8.0+1
+
+  # Routing
+  go_router: ^14.8.1
+
+  # Localization & formatting
+  intl: ^0.20.2
+
+  # Storage
+  shared_preferences: ^2.5.3
+
+  # Charts
+  fl_chart: ^0.70.2
+
+  # File handling
+  file_picker: ^10.1.9
+
+  # UI
+  shimmer: ^3.0.0
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  build_runner: ^2.4.15
+  riverpod_generator: ^2.6.5
+
+flutter:
+  uses-material-design: true
