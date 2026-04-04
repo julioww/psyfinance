@@ -92,10 +92,11 @@ router.post('/:patientId/:year/:month', async (req: Request, res: Response) => {
     return;
   }
 
-  const { sessionDates, observations, isReposicao } = req.body as {
-    sessionDates: string[];
+  const { sessionDates, observations, isReposicao, appendDate } = req.body as {
+    sessionDates?: string[];
     observations?: string;
     isReposicao?: boolean;
+    appendDate?: string;
   };
 
   // Validate patient exists
@@ -111,27 +112,86 @@ router.post('/:patientId/:year/:month', async (req: Request, res: Response) => {
     return;
   }
 
-  // Validate sessionDates is an array
-  if (!Array.isArray(sessionDates)) {
-    res.status(400).json({ message: 'sessionDates deve ser um array' });
-    return;
-  }
+  let finalDates: string[];
+  let finalObservations: string | null;
+  let finalIsReposicao: boolean;
 
-  // Validate each date falls within the given month
-  for (const d of sessionDates) {
-    const parsed = new Date(d);
-    if (isNaN(parsed.getTime())) {
-      res.status(400).json({ message: `Data inválida: ${d}` });
+  if (appendDate !== undefined) {
+    // ---------------------------------------------------------------------------
+    // Quick-add mode: appendDate is "DD/MM" — merge into existing session record
+    // ---------------------------------------------------------------------------
+    const parts = appendDate.split('/');
+    if (parts.length !== 2) {
+      res.status(400).json({ message: 'appendDate deve estar no formato DD/MM' });
       return;
     }
-    if (parsed.getUTCFullYear() !== year || parsed.getUTCMonth() + 1 !== month) {
-      res.status(400).json({ message: `Data ${d} fora do mês especificado` });
+    const day = parts[0].padStart(2, '0');
+    const monthPadded = String(month).padStart(2, '0');
+    const isoDate = `${year}-${monthPadded}-${day}`;
+
+    const parsed = new Date(isoDate);
+    if (
+      isNaN(parsed.getTime()) ||
+      parsed.getUTCFullYear() !== year ||
+      parsed.getUTCMonth() + 1 !== month
+    ) {
+      res.status(400).json({ message: `Data inválida: ${appendDate}` });
       return;
+    }
+
+    // Fetch existing record to get current dates, observations, and isReposicao
+    const existing = await prisma.sessionRecord.findUnique({
+      where: { patientId_year_month: { patientId, year, month } },
+    });
+
+    const existingDates: string[] = existing ? (existing.sessionDates as string[]) : [];
+
+    if (existingDates.includes(isoDate)) {
+      res.status(409).json({ message: 'Já existe uma sessão registrada nesta data para este paciente.' });
+      return;
+    }
+
+    finalDates = [...existingDates, isoDate];
+
+    // Append new observations to existing ones if provided
+    const existingObs = existing?.observations ?? null;
+    if (observations && observations.trim()) {
+      finalObservations = existingObs
+        ? `${existingObs}\n${observations.trim()}`
+        : observations.trim();
+    } else {
+      finalObservations = existingObs;
+    }
+
+    finalIsReposicao = existing?.isReposicao ?? false;
+  } else {
+    // ---------------------------------------------------------------------------
+    // Standard mode: full sessionDates array required
+    // ---------------------------------------------------------------------------
+    if (!Array.isArray(sessionDates)) {
+      res.status(400).json({ message: 'sessionDates deve ser um array' });
+      return;
+    }
+    finalDates = sessionDates;
+    finalObservations = observations ?? null;
+    finalIsReposicao = isReposicao ?? false;
+
+    // Validate each date falls within the given month
+    for (const d of finalDates) {
+      const parsed = new Date(d);
+      if (isNaN(parsed.getTime())) {
+        res.status(400).json({ message: `Data inválida: ${d}` });
+        return;
+      }
+      if (parsed.getUTCFullYear() !== year || parsed.getUTCMonth() + 1 !== month) {
+        res.status(400).json({ message: `Data ${d} fora do mês especificado` });
+        return;
+      }
     }
   }
 
-  // Business rule 1: sessionCount = sessionDates.length
-  const sessionCount = sessionDates.length;
+  // Business rule 1: sessionCount = finalDates.length
+  const sessionCount = finalDates.length;
 
   // Business rule 2: find rate effective on the 1st of the month
   const firstOfMonth = new Date(`${year}-${String(month).padStart(2, '0')}-01`);
@@ -167,18 +227,18 @@ router.post('/:patientId/:year/:month', async (req: Request, res: Response) => {
       patientId,
       year,
       month,
-      sessionDates,
+      sessionDates: finalDates,
       sessionCount,
       expectedAmount,
-      observations: observations ?? null,
-      isReposicao: isReposicao ?? false,
+      observations: finalObservations,
+      isReposicao: finalIsReposicao,
     },
     update: {
-      sessionDates,
+      sessionDates: finalDates,
       sessionCount,
       expectedAmount,
-      observations: observations ?? null,
-      isReposicao: isReposicao ?? false,
+      observations: finalObservations,
+      isReposicao: finalIsReposicao,
       deletedAt: null,
     },
     include: { payment: true },

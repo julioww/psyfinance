@@ -7,6 +7,7 @@ import 'package:shimmer/shimmer.dart';
 import 'package:psyfinance_app/core/formatters.dart';
 import 'package:psyfinance_app/features/patients/patient_model.dart';
 import 'package:psyfinance_app/features/payments/payments_provider.dart';
+import 'package:psyfinance_app/features/sessions/quick_add_session_sheet.dart';
 import 'package:psyfinance_app/features/sessions/session_entry_sheet.dart';
 
 import 'monthly_provider.dart';
@@ -81,41 +82,66 @@ class _MonthlyBulkScreenState extends ConsumerState<MonthlyBulkScreen> {
   Widget build(BuildContext context) {
     final asyncView = ref.watch(monthlyViewProvider(_args));
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    void onRegisterSession() => showQuickAddSessionSheet(
+          context,
+          prefilterCountry: _countryFilter,
+          args: _args,
+          onSaved: (_, __) => ref
+              .read(monthlyViewProvider(_args).notifier)
+              .refreshAfterSessionSave(),
+        );
+
+    return Stack(
       children: [
-        _MonthlyAppBar(
-          year: _year,
-          month: _month,
-          countryFilter: _countryFilter,
-          allRows: asyncView.value?.patients ?? [],
-          showRepasse: _showRepasse,
-          onPrev: _prevMonth,
-          onNext: _nextMonth,
-          onCountryChanged: (c) => setState(() => _countryFilter = c),
-          onToggleRepasse: () =>
-              setState(() => _showRepasse = !_showRepasse),
-        ),
-        asyncView.when(
-          loading: () => Expanded(child: _ShimmerSkeleton()),
-          error: (e, _) => Expanded(
-            child: Center(
-              child: Text(
-                e.toString(),
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _MonthlyAppBar(
+              year: _year,
+              month: _month,
+              countryFilter: _countryFilter,
+              allRows: asyncView.value?.patients ?? [],
+              showRepasse: _showRepasse,
+              onPrev: _prevMonth,
+              onNext: _nextMonth,
+              onCountryChanged: (c) => setState(() => _countryFilter = c),
+              onToggleRepasse: () =>
+                  setState(() => _showRepasse = !_showRepasse),
+            ),
+            asyncView.when(
+              loading: () => Expanded(child: _ShimmerSkeleton()),
+              error: (e, _) => Expanded(
+                child: Center(
+                  child: Text(
+                    e.toString(),
+                    style:
+                        TextStyle(color: Theme.of(context).colorScheme.error),
+                  ),
+                ),
+              ),
+              data: (view) => _MonthlyBody(
+                view: view,
+                year: _year,
+                month: _month,
+                countryFilter: _countryFilter,
+                showRepasse: _showRepasse,
+                args: _args,
+                onSessionSaved: () => ref
+                    .read(monthlyViewProvider(_args).notifier)
+                    .refreshAfterSessionSave(),
+                onRegisterSession: onRegisterSession,
               ),
             ),
-          ),
-          data: (view) => _MonthlyBody(
-            view: view,
-            year: _year,
-            month: _month,
-            countryFilter: _countryFilter,
-            showRepasse: _showRepasse,
-            args: _args,
-            onSessionSaved: () => ref
-                .read(monthlyViewProvider(_args).notifier)
-                .refreshAfterSessionSave(),
+          ],
+        ),
+        Positioned(
+          right: 16,
+          bottom: 16,
+          child: FloatingActionButton.extended(
+            heroTag: 'quick-add-session-fab',
+            onPressed: onRegisterSession,
+            icon: const Icon(Icons.add),
+            label: const Text('Registrar sessão'),
           ),
         ),
       ],
@@ -362,6 +388,7 @@ class _MonthlyBody extends ConsumerWidget {
   final bool showRepasse;
   final MonthlyArgs args;
   final VoidCallback onSessionSaved;
+  final VoidCallback onRegisterSession;
 
   const _MonthlyBody({
     required this.view,
@@ -371,6 +398,7 @@ class _MonthlyBody extends ConsumerWidget {
     required this.showRepasse,
     required this.args,
     required this.onSessionSaved,
+    required this.onRegisterSession,
   });
 
   List<MonthlyPatientRow> get _filtered {
@@ -395,7 +423,11 @@ class _MonthlyBody extends ConsumerWidget {
           ),
           Expanded(
             child: allEmpty && filtered.isNotEmpty
-                ? _EmptyState(month: month, year: year)
+                ? _EmptyState(
+                    month: month,
+                    year: year,
+                    onRegisterSession: onRegisterSession,
+                  )
                 : filtered.isEmpty
                     ? _EmptyState(month: month, year: year)
                     : _PatientTable(
@@ -1247,8 +1279,13 @@ class _StatusChip extends StatelessWidget {
 class _EmptyState extends StatelessWidget {
   final int month;
   final int year;
+  final VoidCallback? onRegisterSession;
 
-  const _EmptyState({required this.month, required this.year});
+  const _EmptyState({
+    required this.month,
+    required this.year,
+    this.onRegisterSession,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1275,6 +1312,14 @@ class _EmptyState extends StatelessWidget {
             style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
             textAlign: TextAlign.center,
           ),
+          if (onRegisterSession != null) ...[
+            const SizedBox(height: 16),
+            TextButton.icon(
+              onPressed: onRegisterSession,
+              icon: const Icon(Icons.add),
+              label: const Text('Registrar sessão'),
+            ),
+          ],
         ],
       ),
     );

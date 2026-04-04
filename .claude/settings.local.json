@@ -6,7 +6,8 @@
       "Bash(flutter test:*)",
       "Bash(npx tsc:*)",
       "Bash(npx prisma:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(xargs grep:*)"
     ]
   }
 }
