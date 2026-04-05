@@ -35,6 +35,9 @@ dependencies:
   # File handling
   file_picker: ^10.1.9
 
+  # URL launching (Google Calendar export)
+  url_launcher: ^6.3.0
+
   # UI
   shimmer: ^3.0.0
 

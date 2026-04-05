@@ -16,6 +16,7 @@ import revenueShareRouter from './routes/revenue_share';
 import exportRouter from './routes/export';
 import importRouter from './routes/import';
 import backupRouter from './routes/backup';
+import agendaRouter from './routes/agenda';
 
 const app = express();
 const PORT = process.env.PORT ?? 3000;
@@ -97,6 +98,7 @@ app.use('/api/dashboard', dashboardRouter);
 app.use('/api/export', exportRouter);
 app.use('/api/import', importRouter);
 app.use('/api/backup', backupRouter);
+app.use('/api/agenda', agendaRouter);
 
 app.listen(PORT, () => {
   console.log(`PsyFinance API running on http://localhost:${PORT}`);

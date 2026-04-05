@@ -193,13 +193,40 @@ router.post('/:patientId/:year/:month', async (req: Request, res: Response) => {
   // Business rule 1: sessionCount = finalDates.length
   const sessionCount = finalDates.length;
 
-  // Business rule 2: find rate effective on the 1st of the month
-  const firstOfMonth = new Date(`${year}-${String(month).padStart(2, '0')}-01`);
-  const effectiveRate = patient.rateHistory.find((r) => {
-    const from = r.effectiveFrom;
-    const to = r.effectiveTo;
-    return from <= firstOfMonth && (to === null || to >= firstOfMonth);
+  // Business rule 2: find the applicable rate for this month.
+  //
+  // All comparisons use UTC milliseconds because pg returns @db.Date columns
+  // at UTC midnight (e.g. "2026-04-05T00:00:00.000Z"), so Date.UTC() is the
+  // correct reference — local-midnight constructors shift the value in UTC±N
+  // timezones and produce wrong results.
+  //
+  // Primary lookup: a rate whose window contains the 1st of the month.
+  // Fallback: if the patient was created mid-month their rate starts after the
+  // 1st — in that case use the most recent rate that began within the month.
+  const firstOfMonthMs = Date.UTC(year, month - 1, 1);
+  const lastOfMonthMs  = Date.UTC(year, month,     0); // day-0 of next month = last day of this month
+
+  const toMs = (d: Date | null) => (d ? d.getTime() : null);
+
+  let effectiveRate = patient.rateHistory.find((r) => {
+    const fromMs = r.effectiveFrom.getTime();
+    const rToMs  = toMs(r.effectiveTo);
+    return fromMs <= firstOfMonthMs && (rToMs === null || rToMs >= firstOfMonthMs);
   });
+
+  if (!effectiveRate) {
+    // Fallback: pick the most recent rate that started on or before the last
+    // day of the month (covers patients created mid-month).
+    const candidates = patient.rateHistory.filter(
+      (r) => r.effectiveFrom.getTime() <= lastOfMonthMs,
+    );
+    if (candidates.length > 0) {
+      effectiveRate = candidates.reduce((best, r) =>
+        r.effectiveFrom.getTime() > best.effectiveFrom.getTime() ? r : best,
+      );
+    }
+  }
+
   const rate = effectiveRate ? Number(effectiveRate.rate) : 0;
 
   // MENSAL: fixed monthly rate; SESSAO: sessionCount × rate
