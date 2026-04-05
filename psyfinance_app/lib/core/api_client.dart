@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show VoidCallback;
 
 class ApiException implements Exception {
   final int statusCode;
@@ -14,6 +15,10 @@ class ApiException implements Exception {
 class ApiClient {
   final Dio _dio;
 
+  /// Called when the server returns 401 (token expired / revoked).
+  /// Set by AuthNotifier after initialization.
+  VoidCallback? onUnauthorized;
+
   ApiClient({String baseUrl = 'http://localhost:3000'})
       : _dio = Dio(
           BaseOptions(
@@ -22,7 +27,18 @@ class ApiClient {
             receiveTimeout: const Duration(seconds: 30),
             headers: {'Content-Type': 'application/json'},
           ),
-        );
+        ) {
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onError: (DioException error, ErrorInterceptorHandler handler) {
+          if (error.response?.statusCode == 401) {
+            onUnauthorized?.call();
+          }
+          handler.next(error);
+        },
+      ),
+    );
+  }
 
   void setAuthToken(String token) {
     _dio.options.headers['Authorization'] = 'Bearer $token';
@@ -41,9 +57,9 @@ class ApiClient {
     }
   }
 
-  Future<dynamic> post(String path, {dynamic data}) async {
+  Future<dynamic> post(String path, {dynamic data, Options? options}) async {
     try {
-      final response = await _dio.post(path, data: data);
+      final response = await _dio.post(path, data: data, options: options);
       return response.data;
     } on DioException catch (e) {
       throw _handleDioError(e);
@@ -93,6 +109,9 @@ class ApiClient {
     }
   }
 
+  /// Access the underlying Dio instance for streaming requests (e.g. import).
+  Dio get dio => _dio;
+
   ApiException _handleDioError(DioException e) {
     final statusCode = e.response?.statusCode ?? 0;
     final data = e.response?.data;
@@ -107,3 +126,4 @@ class ApiClient {
     return ApiException(statusCode: statusCode, message: message);
   }
 }
+

@@ -59,25 +59,48 @@ class AppShell extends StatelessWidget {
     return Scaffold(
       body: Row(
         children: [
-          NavigationRail(
-            selectedIndex: selectedIdx,
-            onDestinationSelected: (i) => context.go(_destinations[i].route),
-            labelType: NavigationRailLabelType.all,
-            backgroundColor: colorScheme.surfaceContainerLow,
-            indicatorColor: colorScheme.primaryContainer,
-            selectedIconTheme:
-                IconThemeData(color: colorScheme.onPrimaryContainer),
-            unselectedIconTheme:
-                IconThemeData(color: colorScheme.onSurfaceVariant),
-            destinations: _destinations
-                .map(
-                  (d) => NavigationRailDestination(
-                    icon: Icon(d.icon),
-                    selectedIcon: Icon(d.selectedIcon),
-                    label: Text(d.label),
+          // ---------------------------------------------------------------
+          // Navigation rail with gear button at the bottom
+          // ---------------------------------------------------------------
+          Column(
+            children: [
+              Expanded(
+                child: NavigationRail(
+                  selectedIndex: selectedIdx,
+                  onDestinationSelected: (i) =>
+                      context.go(_destinations[i].route),
+                  labelType: NavigationRailLabelType.all,
+                  backgroundColor: colorScheme.surfaceContainerLow,
+                  indicatorColor: colorScheme.primaryContainer,
+                  selectedIconTheme:
+                      IconThemeData(color: colorScheme.onPrimaryContainer),
+                  unselectedIconTheme:
+                      IconThemeData(color: colorScheme.onSurfaceVariant),
+                  destinations: _destinations
+                      .map(
+                        (d) => NavigationRailDestination(
+                          icon: Icon(d.icon),
+                          selectedIcon: Icon(d.selectedIcon),
+                          label: Text(d.label),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
+              // Gear icon at the bottom
+              Container(
+                color: colorScheme.surfaceContainerLow,
+                padding: const EdgeInsets.only(bottom: 12),
+                child: IconButton(
+                  tooltip: 'Configurações',
+                  icon: Icon(
+                    Icons.settings_outlined,
+                    color: colorScheme.onSurfaceVariant,
                   ),
-                )
-                .toList(),
+                  onPressed: () => context.push('/configuracoes'),
+                ),
+              ),
+            ],
           ),
           const VerticalDivider(thickness: 1, width: 1),
           Expanded(child: child),
