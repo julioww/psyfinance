@@ -16,6 +16,9 @@ app.use('/api/patients', ratesRouter);
 // ---------------------------------------------------------------------------
 
 async function cleanAll() {
+  await prisma.payment.deleteMany({});
+  await prisma.sessionRecord.deleteMany({});
+  await prisma.revenueShareConfig.deleteMany({});
   await prisma.rateHistory.deleteMany({});
   await prisma.patient.deleteMany({});
 }
@@ -232,6 +235,16 @@ describe('lib/rate — getRateForDate', () => {
       .send({ rate: 300, effectiveFrom: '2025-08-01' });
 
     const rate = await getRateForDate(id, new Date('2025-07-31'));
+    expect(rate).toBe(200);
+  });
+
+  it('returns the current rate for a future year with no session records (carry-forward)', async () => {
+    // Patient has a rate set in 2025 (effectiveTo IS NULL); no sessions exist in 2027.
+    const patient = await createPatient({ initialRate: 200, rateEffectiveFrom: '2025-01-01' });
+    const id = patient.body.id;
+
+    // Query for January 2027 — no additional rates or sessions created
+    const rate = await getRateForDate(id, new Date('2027-01-01'));
     expect(rate).toBe(200);
   });
 });

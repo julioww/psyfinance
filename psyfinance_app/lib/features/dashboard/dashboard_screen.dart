@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:psyfinance_app/core/formatters.dart';
 import 'dashboard_model.dart';
@@ -29,6 +30,29 @@ class DashboardScreen extends ConsumerStatefulWidget {
 
 class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   int _year = DateTime.now().year.clamp(2023, 2026);
+  bool _bannerDismissed = true; // start true to avoid flash on load
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBannerState();
+  }
+
+  Future<void> _loadBannerState() async {
+    final prefs = await SharedPreferences.getInstance();
+    final dismissed =
+        prefs.getBool('year_end_banner_dismissed_$_year') ?? false;
+    if (mounted) setState(() => _bannerDismissed = dismissed);
+  }
+
+  Future<void> _dismissBanner() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('year_end_banner_dismissed_$_year', true);
+    if (mounted) setState(() => _bannerDismissed = true);
+  }
+
+  bool get _showBanner =>
+      DateTime.now().month == 12 && !_bannerDismissed;
 
   @override
   Widget build(BuildContext context) {
@@ -41,6 +65,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         year: _year,
         data: data,
         onYearChanged: (y) => setState(() => _year = y),
+        showBanner: _showBanner,
+        onDismissBanner: _dismissBanner,
       ),
     );
   }
@@ -54,11 +80,15 @@ class _DashboardBody extends StatelessWidget {
   final int year;
   final DashboardData data;
   final ValueChanged<int> onYearChanged;
+  final bool showBanner;
+  final VoidCallback onDismissBanner;
 
   const _DashboardBody({
     required this.year,
     required this.data,
     required this.onYearChanged,
+    required this.showBanner,
+    required this.onDismissBanner,
   });
 
   @override
@@ -68,6 +98,10 @@ class _DashboardBody extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (showBanner) ...[
+            _YearEndBanner(year: year, onDismiss: onDismissBanner),
+            const SizedBox(height: 16),
+          ],
           _PageHeader(
             year: year,
             onYearChanged: onYearChanged,
@@ -110,6 +144,55 @@ class _DashboardBody extends StatelessWidget {
           _RepassesSection(repasses: data.repasses),
           const SizedBox(height: 32),
         ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// _YearEndBanner — shown only in December, dismissible via SharedPreferences
+// ---------------------------------------------------------------------------
+
+class _YearEndBanner extends StatelessWidget {
+  final int year;
+  final VoidCallback onDismiss;
+
+  const _YearEndBanner({required this.year, required this.onDismiss});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: const Color(0xFFFFF8E1),
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: const BorderSide(color: Color(0xFFFFE082)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            const Icon(Icons.warning_amber_outlined,
+                color: Color(0xFFF9A825), size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'O ano está terminando. Verifique se todos os pagamentos de $year estão atualizados.',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF4E3300),
+                ),
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close, size: 18, color: Color(0xFFF9A825)),
+              onPressed: onDismiss,
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+            ),
+          ],
+        ),
       ),
     );
   }

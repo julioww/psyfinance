@@ -12,7 +12,8 @@
       "Bash(printf 'DATABASE_URL=\"\"postgresql://postgres:postgres@localhost:5432/psyfinance\"\"\\\\nPORT=3000\\\\n\\\\n# Authentication \\(required — generate with scripts/generate-password.ts and crypto.randomBytes\\)\\\\nPSYFINANCE_USERNAME=psico\\\\nPSYFINANCE_PASSWORD_HASH=\\\\nJWT_SECRET=\\\\n')",
       "Bash(\"C:/Users/julio/CLaude/psyfinance/psyfinance-api/.env.example\")",
       "Bash(npx vitest:*)",
-      "Bash(npx ts-node:*)"
+      "Bash(npx ts-node:*)",
+      "Bash(grep -E \"\\\\.ts$\")"
     ]
   }
 }

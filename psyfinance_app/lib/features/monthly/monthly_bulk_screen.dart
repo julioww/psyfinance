@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shimmer/shimmer.dart';
 
 import 'package:psyfinance_app/core/formatters.dart';
@@ -49,6 +50,7 @@ class _MonthlyBulkScreenState extends ConsumerState<MonthlyBulkScreen> {
   late int _month;
   String? _countryFilter; // null = "Todos"
   bool _showRepasse = false;
+  bool _welcomeSnackChecked = false;
 
   @override
   void initState() {
@@ -56,6 +58,36 @@ class _MonthlyBulkScreenState extends ConsumerState<MonthlyBulkScreen> {
     final now = DateTime.now();
     _year = now.year;
     _month = now.month;
+  }
+
+  /// Shows the new-year welcome SnackBar once per calendar year, gated on:
+  ///  - current screen month is January of the current calendar year
+  ///  - no session records exist yet in the loaded view
+  ///  - SharedPreferences key not already set
+  Future<void> _maybeShowNewYearWelcome(
+      BuildContext context, MonthlyView view) async {
+    if (_welcomeSnackChecked) return;
+    _welcomeSnackChecked = true;
+
+    final now = DateTime.now();
+    if (_month != 1 || _year != now.year) return;
+
+    final hasAnySessions = view.patients.any((r) => r.sessionRecord != null);
+    if (hasAnySessions) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final key = 'new_year_welcome_shown_$_year';
+    if (prefs.getBool(key) == true) return;
+    await prefs.setBool(key, true);
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+            'Bem-vindo a $_year! Os pacientes ativos foram mantidos automaticamente.'),
+        duration: const Duration(seconds: 6),
+      ),
+    );
   }
 
   MonthlyArgs get _args => (year: _year, month: _month);
@@ -81,6 +113,13 @@ class _MonthlyBulkScreenState extends ConsumerState<MonthlyBulkScreen> {
   @override
   Widget build(BuildContext context) {
     final asyncView = ref.watch(monthlyViewProvider(_args));
+
+    ref.listen<AsyncValue<MonthlyView>>(
+      monthlyViewProvider(_args),
+      (_, next) => next.whenData(
+        (view) => _maybeShowNewYearWelcome(context, view),
+      ),
+    );
 
     void onRegisterSession() => showQuickAddSessionSheet(
           context,

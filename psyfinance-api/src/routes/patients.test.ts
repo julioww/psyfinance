@@ -13,6 +13,9 @@ app.use('/api/patients', patientsRouter);
 // ---------------------------------------------------------------------------
 
 async function cleanPatients() {
+  await prisma.payment.deleteMany({});
+  await prisma.sessionRecord.deleteMany({});
+  await prisma.revenueShareConfig.deleteMany({});
   await prisma.rateHistory.deleteMany({});
   await prisma.patient.deleteMany({});
 }
