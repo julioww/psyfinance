@@ -10,6 +10,7 @@ import 'package:psyfinance_app/features/monthly/monthly_bulk_screen.dart';
 import 'package:psyfinance_app/features/patients/patient_detail_screen.dart';
 import 'package:psyfinance_app/features/patients/patient_list_screen.dart';
 import 'package:psyfinance_app/features/agenda/sessoes_screen.dart';
+import 'package:psyfinance_app/features/payments/pagamentos_screen.dart';
 import 'package:psyfinance_app/features/relatorio/relatorio_screen.dart';
 import 'package:psyfinance_app/screens/home_screen.dart';
 
@@ -80,8 +81,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/pagamentos',
-            builder: (context, state) =>
-                const _PlaceholderScreen(label: 'Pagamentos'),
+            builder: (context, state) => const PagamentosScreen(),
           ),
           GoRoute(
             path: '/relatorio',

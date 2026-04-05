@@ -1375,7 +1375,7 @@ class _ShimmerSkeleton extends StatelessWidget {
     return Shimmer.fromColors(
       baseColor: Colors.grey[300]!,
       highlightColor: Colors.grey[100]!,
-      child: Column(
+      child: ListView(
         children: [
           // Summary strip skeleton
           Container(

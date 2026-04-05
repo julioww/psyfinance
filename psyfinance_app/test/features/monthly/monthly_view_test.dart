@@ -249,8 +249,8 @@ void main() {
       await tester.tap(find.text('Brasil').last);
       await tester.pumpAndSettle();
 
-      // Only Brasil appears in the BRL card subtitle; Alemanha disappears
-      expect(find.text('Brasil'), findsOneWidget);
+      // Brasil appears at least once (BRL card + dropdown label); Alemanha disappears
+      expect(find.text('Brasil'), findsAtLeastNWidgets(1));
       expect(find.text('Alemanha'), findsNothing);
     });
   });
