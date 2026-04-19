@@ -1,5 +1,5 @@
 {
-  "buildCommand": "node node_modules/prisma/build/index.js generate",
+  "buildCommand": "chmod +x node_modules/.bin/* 2>/dev/null; node node_modules/prisma/build/index.js generate",
   "rewrites": [
     { "source": "/(.*)", "destination": "/api/index" }
   ],
