@@ -1,7 +1,8 @@
 {
   "buildCommand": "chmod +x node_modules/.bin/* 2>/dev/null; node node_modules/prisma/build/index.js generate",
+  "outputDirectory": "public",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/api/index" }
+    { "source": "/((?!api/).*)", "destination": "/api/index" }
   ],
   "functions": {
     "api/index.ts": {
