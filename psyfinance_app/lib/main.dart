@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +8,10 @@ import 'package:psyfinance_app/core/theme.dart';
 import 'package:psyfinance_app/features/patients/patients_provider.dart';
 
 void main() {
+  // Suppress all debugPrint output in production builds.
+  if (kReleaseMode) {
+    debugPrint = (String? message, {int? wrapWidth}) {};
+  }
   runApp(const ProviderScope(child: PsyFinanceApp()));
 }
 

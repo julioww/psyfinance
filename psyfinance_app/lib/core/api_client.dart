@@ -2,6 +2,16 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart' show VoidCallback;
 
+// ---------------------------------------------------------------------------
+// Base URL — injected at build time via --dart-define=API_BASE_URL=...
+// Never hardcode a production URL in source; use:
+//   flutter build web --dart-define=API_BASE_URL=https://your-api.example.com --release
+// ---------------------------------------------------------------------------
+const String apiBaseUrl = String.fromEnvironment(
+  'API_BASE_URL',
+  defaultValue: 'http://localhost:3000',
+);
+
 class ApiException implements Exception {
   final int statusCode;
   final String message;
@@ -19,10 +29,10 @@ class ApiClient {
   /// Set by AuthNotifier after initialization.
   VoidCallback? onUnauthorized;
 
-  ApiClient({String baseUrl = 'http://localhost:3000'})
+  ApiClient()
       : _dio = Dio(
           BaseOptions(
-            baseUrl: baseUrl,
+            baseUrl: apiBaseUrl,
             connectTimeout: const Duration(seconds: 10),
             receiveTimeout: const Duration(seconds: 30),
             headers: {'Content-Type': 'application/json'},

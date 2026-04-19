@@ -13,12 +13,14 @@ import { requireAuth } from '../middleware/requireAuth';
 
 const TEST_USERNAME = 'psico';
 const TEST_PASSWORD = 'senha123';
+// 64-char hex secret — matches the minimum required by lib/auth.ts
+const TEST_JWT_SECRET = 'a'.repeat(64);
 
 async function buildApp() {
   const hash = await bcrypt.hash(TEST_PASSWORD, 10);
   vi.stubEnv('PSYFINANCE_USERNAME', TEST_USERNAME);
   vi.stubEnv('PSYFINANCE_PASSWORD_HASH', hash);
-  vi.stubEnv('JWT_SECRET', 'test-secret-key');
+  vi.stubEnv('JWT_SECRET', TEST_JWT_SECRET);
 
   const app = express();
   app.use(express.json());
@@ -127,7 +129,7 @@ describe('Rate limiter', () => {
   it('blocks after 10 login attempts per minute → 429', async () => {
     vi.stubEnv('PSYFINANCE_USERNAME', 'x');
     vi.stubEnv('PSYFINANCE_PASSWORD_HASH', 'x');
-    vi.stubEnv('JWT_SECRET', 'test-secret-key');
+    vi.stubEnv('JWT_SECRET', TEST_JWT_SECRET);
 
     const app = express();
     app.use(express.json());

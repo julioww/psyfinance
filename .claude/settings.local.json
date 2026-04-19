@@ -13,7 +13,12 @@
       "Bash(\"C:/Users/julio/CLaude/psyfinance/psyfinance-api/.env.example\")",
       "Bash(npx vitest:*)",
       "Bash(npx ts-node:*)",
-      "Bash(grep -E \"\\\\.ts$\")"
+      "Bash(grep -E \"\\\\.ts$\")",
+      "Bash(for f:*)",
+      "Bash(do echo:*)",
+      "Read(//c/Users/julio/CLaude/psyfinance/psyfinance-api/src/routes/**)",
+      "Bash(done)",
+      "Bash(grep -r \"$queryRaw\\\\|$executeRaw\" /c/Users/julio/CLaude/psyfinance/psyfinance-api/src/ --include=\"*.ts\" -n)"
     ]
   }
 }

@@ -1,12 +1,13 @@
 import 'package:dio/dio.dart';
+import 'package:psyfinance_app/core/api_client.dart';
 
 class AuthRepository {
   final Dio _dio;
 
-  AuthRepository({String baseUrl = 'http://localhost:3000'})
+  AuthRepository()
       : _dio = Dio(
           BaseOptions(
-            baseUrl: baseUrl,
+            baseUrl: apiBaseUrl,
             connectTimeout: const Duration(seconds: 10),
             receiveTimeout: const Duration(seconds: 30),
           ),
@@ -16,11 +17,10 @@ class AuthRepository {
   Future<Map<String, dynamic>> login({
     required String usuario,
     required String senha,
-    bool lembrar = false,
   }) async {
     final response = await _dio.post<Map<String, dynamic>>(
       '/auth/login',
-      data: {'usuario': usuario, 'senha': senha, 'lembrar': lembrar},
+      data: {'usuario': usuario, 'senha': senha},
     );
     return response.data!;
   }

@@ -1,74 +1,41 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'auth_state.dart';
 import 'auth_repository.dart';
 
-const _kTokenKey = 'psyfinance_token';
-const _kExpiresAtKey = 'psyfinance_expires_at';
-
 // ---------------------------------------------------------------------------
-// Internal ChangeNotifier used only as GoRouter's refreshListenable.
+// AuthNotifier — token lives in-memory ONLY (Riverpod state).
+//
+// Security rationale: storing the JWT in SharedPreferences (which maps to
+// localStorage on Flutter web) exposes it to any JavaScript running on the
+// page (XSS risk). In-memory storage means the token is lost on page refresh
+// and the user must log in again — this is acceptable for a single-user
+// internal tool and is far safer than localStorage persistence.
 // ---------------------------------------------------------------------------
 
 class _RouterRefreshNotifier extends ChangeNotifier {
   void refresh() => notifyListeners();
 }
 
-// ---------------------------------------------------------------------------
-// AuthNotifier
-// ---------------------------------------------------------------------------
-
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _repo;
   final _routerRefresh = _RouterRefreshNotifier();
 
-  AuthNotifier(this._repo) : super(const AuthState.unauthenticated()) {
-    _restoreSession();
-  }
+  AuthNotifier(this._repo) : super(const AuthState.unauthenticated());
 
   /// Listenable for GoRouter's refreshListenable.
   Listenable get routerListenable => _routerRefresh;
 
   /// Callback invoked when a forced logout happens (e.g. 401 from API).
-  /// Wired up in routerProvider so the router navigates to /login.
   VoidCallback? onForceLogout;
-
-  Future<void> _restoreSession() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString(_kTokenKey);
-    final expiresAtStr = prefs.getString(_kExpiresAtKey);
-
-    if (token == null || expiresAtStr == null) return;
-
-    final expiresAt = DateTime.tryParse(expiresAtStr);
-    if (expiresAt == null || DateTime.now().isAfter(expiresAt)) {
-      await _clearStorage();
-      return;
-    }
-
-    state = AuthState(
-      isAuthenticated: true,
-      token: token,
-      expiresAt: expiresAt,
-    );
-    _routerRefresh.refresh();
-  }
 
   Future<void> login({
     required String usuario,
     required String senha,
-    bool lembrar = false,
   }) async {
-    final data = await _repo.login(
-      usuario: usuario,
-      senha: senha,
-      lembrar: lembrar,
-    );
+    final data = await _repo.login(usuario: usuario, senha: senha);
     final token = data['token'] as String;
     final expiresAt = DateTime.parse(data['expiresAt'] as String);
-
-    await _saveStorage(token, expiresAt);
 
     state = AuthState(
       isAuthenticated: true,
@@ -82,7 +49,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final token = state.token;
     state = const AuthState.unauthenticated();
     _routerRefresh.refresh();
-    await _clearStorage();
     if (token != null) {
       await _repo.logout(token);
     }
@@ -92,21 +58,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   void forceLogout() {
     if (!state.isAuthenticated) return;
     state = const AuthState.unauthenticated();
-    _clearStorage();
     _routerRefresh.refresh();
     onForceLogout?.call();
-  }
-
-  Future<void> _saveStorage(String token, DateTime expiresAt) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_kTokenKey, token);
-    await prefs.setString(_kExpiresAtKey, expiresAt.toIso8601String());
-  }
-
-  Future<void> _clearStorage() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_kTokenKey);
-    await prefs.remove(_kExpiresAtKey);
   }
 
   @override

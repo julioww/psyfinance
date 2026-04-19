@@ -1,0 +1,48 @@
+# Environment variables — never commit secrets
+.env
+.env.*
+!.env.example
+
+# Keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cert
+
+# Backup files — may contain patient data
+backups/
+*.dump
+*.sql.gz.enc
+
+# Node
+node_modules/
+dist/
+*.js.map
+
+# Vercel
+.vercel/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Flutter build output
+psyfinance_app/build/
+psyfinance_app/.dart_tool/
+psyfinance_app/.flutter-plugins
+psyfinance_app/.flutter-plugins-dependencies
+psyfinance_app/*.iml
+
+# IDE
+.idea/
+.vscode/
+*.swp

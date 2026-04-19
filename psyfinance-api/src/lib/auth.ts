@@ -5,9 +5,16 @@ import { randomUUID } from 'crypto';
 // On process restart the denylist is cleared, but tokens will expire naturally.
 const denylist = new Set<string>();
 
-// Read JWT_SECRET dynamically so tests can override via vi.stubEnv
+// Read JWT_SECRET dynamically so tests can override via vi.stubEnv.
+// In production the startup check in index.ts enforces minimum length before
+// any request arrives. In development a short secret is allowed with a warning.
 function secret(): string {
-  return process.env.JWT_SECRET ?? 'dev-secret-change-in-production';
+  const s = process.env.JWT_SECRET;
+  if (!s) throw new Error('JWT_SECRET is not set');
+  if (s.length < 64 && process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET must be at least 64 characters');
+  }
+  return s;
 }
 
 export interface TokenPayload {

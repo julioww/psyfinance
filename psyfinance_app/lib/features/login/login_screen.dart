@@ -16,7 +16,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _senhaCtrl = TextEditingController();
 
   bool _obscureSenha = true;
-  bool _lembrar = false;
   bool _loading = false;
   bool _showError = false;
 
@@ -38,7 +37,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await ref.read(authProvider.notifier).login(
             usuario: _usuarioCtrl.text.trim(),
             senha: _senhaCtrl.text,
-            lembrar: _lembrar,
           );
       if (mounted) context.go('/mensal');
     } on DioException catch (e) {
@@ -166,6 +164,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               controller: _usuarioCtrl,
                               enabled: !_loading,
                               textInputAction: TextInputAction.next,
+                              // Opt out of browser autofill on sensitive fields
+                              autofillHints: const [],
                               decoration: InputDecoration(
                                 labelText: 'Usuário',
                                 border: OutlineInputBorder(
@@ -187,6 +187,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               enabled: !_loading,
                               obscureText: _obscureSenha,
                               onSubmitted: (_) => _submit(),
+                              // Opt out of browser autofill on sensitive fields
+                              autofillHints: const [],
                               decoration: InputDecoration(
                                 labelText: 'Senha',
                                 border: OutlineInputBorder(
@@ -208,18 +210,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           ),
                           const SizedBox(height: 8),
 
-                          // Lembrar de mim
-                          CheckboxListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text('Lembrar de mim',
-                                style: TextStyle(fontSize: 14)),
-                            value: _lembrar,
-                            onChanged: _loading
-                                ? null
-                                : (v) => setState(() => _lembrar = v ?? false),
-                            visualDensity: VisualDensity.compact,
-                            controlAffinity: ListTileControlAffinity.leading,
-                          ),
                           const SizedBox(height: 12),
 
                           // Entrar button
