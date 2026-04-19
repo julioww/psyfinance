@@ -1,5 +1,5 @@
 {
-  "buildCommand": "",
+  "buildCommand": "node node_modules/prisma/build/index.js generate",
   "rewrites": [
     { "source": "/(.*)", "destination": "/api/index" }
   ],
