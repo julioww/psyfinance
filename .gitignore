@@ -35,8 +35,10 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 
-# Flutter build output
+# Flutter build output (keep build/web for Vercel deployment)
 psyfinance_app/build/
+!psyfinance_app/build/web/
+!psyfinance_app/build/web/**
 psyfinance_app/.dart_tool/
 psyfinance_app/.flutter-plugins
 psyfinance_app/.flutter-plugins-dependencies
